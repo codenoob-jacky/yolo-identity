@@ -1,47 +1,38 @@
-# Implementation Guide: Construction Site Safety Detection with YOLO
+# Implementation Guide: Training YOLO Model for 100-200 Construction Safety Violations
 
-This guide provides a comprehensive overview of how to implement a YOLO-based system for detecting safety violations on construction sites, such as workers not wearing hard hats or safety harnesses.
+This guide explains how to train a YOLO model to detect 100-200 different dangerous behaviors and safety violations in construction sites.
 
 ## Table of Contents
 1. [Overview](#overview)
-2. [System Architecture](#system-architecture)
-3. [Dataset Preparation](#dataset-preparation)
-4. [Model Training](#model-training)
-5. [Inference and Deployment](#inference-and-deployment)
-6. [Safety Violation Detection Logic](#safety-violation-detection-logic)
-7. [Evaluation and Testing](#evaluation-and-testing)
+2. [Dataset Preparation](#dataset-preparation)
+3. [Training Process](#training-process)
+4. [Model Architecture Considerations](#model-architecture-considerations)
+5. [Performance Optimization](#performance-optimization)
+6. [Best Practices](#best-practices)
 
 ## Overview
 
-The construction site safety detection system uses YOLO (You Only Look Once) object detection to identify workers and their safety equipment in real-time. The system can detect violations such as:
-- Workers not wearing hard hats
-- Workers not wearing safety vests
-- Workers not wearing safety harnesses (especially important for high-altitude work)
-
-## System Architecture
-
-The system consists of several components:
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Input Data    │───▶│  YOLO Detector   │───▶│  Violation      │
-│ (Images/Videos) │    │  (Person/Safety   │    │  Analyzer       │
-└─────────────────┘    │   Equipment)      │    └─────────────────┘
-                       └──────────────────┘
-                                │
-                       ┌──────────────────┐
-                       │  Output Results  │
-                       │ (Visualizations, │
-                       │   Alerts, etc.)  │
-                       └──────────────────┘
-```
+Training a YOLO model to detect 100-200 classes of safety violations requires careful planning and execution. This system can identify various dangerous behaviors such as workers not wearing safety equipment, unsafe positioning, improper tool usage, and environmental hazards.
 
 ## Dataset Preparation
 
-### Required Dataset Structure
+### 1. Data Collection
+- Collect images from construction sites covering various scenarios
+- Ensure diverse conditions: different lighting, weather, angles, and environments
+- Include positive examples (violations present) and negative examples (proper safety)
+- Aim for at least 1000-2000 images per class for good performance
+
+### 2. Annotation Process
+- Use annotation tools like LabelImg, CVAT, or Roboflow
+- Create bounding boxes around each safety violation
+- Assign class IDs to each type of violation
+- Ensure high-quality annotations to avoid mislabeling
+
+### 3. Dataset Structure
+Your dataset should follow this structure:
 ```
-safety_dataset/
-├── dataset.yaml
+dataset/
+├── dataset_config.yaml
 ├── images/
 │   ├── train/
 │   ├── val/
@@ -52,153 +43,137 @@ safety_dataset/
     └── test/
 ```
 
-### Classes Definition
-The model should detect the following classes:
-- `0`: person
-- `1`: hard_hat
-- `2`: safety_vest
-- `3`: safety_harness
-- `4`: safety_goggles
-- `5`: gloves
-- `6`: boots
-
-### Annotation Format
-Labels should be in YOLO format (.txt files):
+### 4. Label Format
+Labels should be in YOLO format (normalized coordinates):
 ```
 class_id center_x center_y width height
 ```
-All values are normalized between 0 and 1.
 
-### Data Collection Tips
-- Collect images from various construction sites
-- Include different lighting conditions (daylight, artificial light, shadows)
-- Capture different angles and distances
-- Ensure diverse worker appearances and clothing
-- Include both compliant and non-compliant scenarios
+## Training Process
 
-## Model Training
+### 1. Configuring the Training Script
+The training script (`src/train_safety_model.py`) accepts the following parameters:
+- `--dataset_path`: Path to your dataset directory
+- `--num_classes`: Number of classes to detect (default: 100)
+- `--img_size`: Image size for training (default: 640)
+- `--epochs`: Number of training epochs (default: 100)
+- `--batch_size`: Batch size for training (default: 16)
+- `--model_type`: Pretrained model type (default: yolov8n.pt)
 
-### Using the Training Script
+### 2. Running the Training
 ```bash
-python src/train_safety_model.py
+python src/train_safety_model.py --dataset_path /path/to/dataset --num_classes 150 --epochs 200 --batch_size 8
 ```
 
-### Training Parameters
-- **Model Architecture**: Start with `yolov8n.pt` for faster training, or `yolov8m.pt` for better accuracy
-- **Image Size**: 640x640 pixels (default)
-- **Batch Size**: 16 (adjust based on GPU memory)
-- **Epochs**: 100-300 (monitor validation metrics to avoid overfitting)
+### 3. Training Considerations for 100-200 Classes
+- Use a more powerful model architecture (e.g., yolov8x.pt) for better performance with many classes
+- Reduce batch size if memory is limited
+- Increase number of epochs for convergence
+- Monitor training metrics closely to prevent overfitting
 
-### Training Best Practices
-1. Use data augmentation to improve model generalization
-2. Monitor validation loss to prevent overfitting
-3. Use transfer learning from a pre-trained model
-4. Fine-tune hyperparameters based on validation results
+## Model Architecture Considerations
 
-## Inference and Deployment
+### 1. Model Selection
+- For 100-150 classes: yolov8m.pt or yolov8l.pt
+- For 150-200 classes: yolov8x.pt or yolov9c.pt
+- Consider computational resources when selecting model size
 
-### Real-time Detection
-```bash
-python -m src.detection --input webcam
-```
+### 2. Architecture Modifications
+For 100-200 classes, consider:
+- Increasing the number of channels in detection heads
+- Adding more convolutional layers for better feature extraction
+- Using focal loss to handle class imbalance
 
-### Image Detection
-```bash
-python -m src.detection --input path/to/image.jpg --output output.jpg
-```
+### 3. Hyperparameter Tuning
+- Learning rate: Start with 0.001, adjust based on convergence
+- Weight decay: 0.0005 for regularization
+- Momentum: 0.937 for SGD optimizer
+- Warmup epochs: 3-5 for stable training
 
-### Video Detection
-```bash
-python -m src.detection --input path/to/video.mp4 --output output.mp4
-```
+## Performance Optimization
 
-### Custom Model Usage
-```bash
-python -m src.detection --input webcam --model path/to/trained_model.pt
-```
+### 1. Memory Management
+- Use smaller batch sizes for more classes
+- Enable gradient accumulation to simulate larger batches
+- Use mixed precision training (fp16) to reduce memory usage
 
-## Safety Violation Detection Logic
+### 2. Training Acceleration
+- Enable caching: `cache='ram'` for faster data loading
+- Use multiple workers: `workers=8` for data loading
+- GPU utilization: Ensure CUDA is properly configured
 
-The system identifies safety violations by analyzing the spatial relationships between detected objects:
+### 3. Distributed Training
+For very large datasets with 200 classes:
+- Use multiple GPUs with DataParallel or DistributedDataParallel
+- Split dataset across multiple machines
+- Use Horovod or PyTorch Lightning for distributed training
 
-### Hard Hat Violation Detection
-1. Detect all `person` objects
-2. Detect all `hard_hat` objects
-3. For each person, check if there's a hard hat in the head region
-4. If no hard hat is detected near a person's head, flag as violation
+## Best Practices
 
-### Safety Harness Violation Detection
-1. Detect `person` objects in potentially dangerous areas (height, near edges)
-2. Check for `safety_harness` objects associated with these persons
-3. Flag violations if required equipment is missing
+### 1. Data Quality
+- Maintain balanced datasets across all classes
+- Remove duplicate or low-quality images
+- Augment data to increase diversity
+- Validate annotations before training
 
-### Algorithm Details
-```python
-# Pseudo-code for violation detection
-for person in detected_persons:
-    head_region = calculate_head_region(person_bbox)
-    has_hard_hat = False
-    
-    for hard_hat in detected_hard_hats:
-        if bbox_in_head_region(hard_hat, head_region):
-            has_hard_hat = True
-            break
-    
-    if not has_hard_hat:
-        flag_violation("missing_hard_hat", person)
-```
+### 2. Validation Strategy
+- Use stratified splits to maintain class distribution
+- Implement k-fold cross-validation for robust evaluation
+- Monitor precision, recall, and mAP for each class
+- Use separate validation set for hyperparameter tuning
 
-## Evaluation and Testing
+### 3. Model Evaluation
+- Calculate mAP@0.5, mAP@0.5:0.95 for comprehensive evaluation
+- Analyze per-class performance to identify weak classes
+- Use confusion matrices to understand class similarities
+- Perform inference on real-world scenarios for validation
 
-### Metrics
-- **Precision**: Percentage of correctly identified violations
-- **Recall**: Percentage of actual violations that were detected
-- **mAP (mean Average Precision)**: Overall detection accuracy
+### 4. Handling Class Imbalance
+- Use class weights in loss function
+- Apply data augmentation to minority classes
+- Implement focal loss to focus on hard examples
+- Collect more data for underrepresented classes
 
-### Testing Scenarios
-1. **Daylight conditions**: Standard outdoor lighting
-2. **Low light conditions**: Dawn, dusk, or artificial lighting
-3. **Different weather**: Sunny, cloudy, rainy
-4. **Various construction sites**: Building sites, road work, industrial sites
-5. **Different worker postures**: Standing, crouching, climbing
+### 5. Deployment Considerations
+- Optimize model for inference speed if real-time detection is required
+- Quantize model to INT8 for edge deployment
+- Validate model performance on deployment hardware
+- Implement post-processing for safety rule checking
 
-### Performance Optimization
-- Use appropriate model size for your hardware
-- Consider quantization for edge deployment
-- Optimize preprocessing pipeline
-- Use GPU acceleration where available
+## Common Challenges and Solutions
 
-## Implementation Considerations
+### 1. Overfitting with Many Classes
+- Use stronger regularization techniques
+- Implement early stopping based on validation loss
+- Add more training data or use data augmentation
+- Reduce model complexity if overfitting persists
 
-### Hardware Requirements
-- **Training**: GPU with >=8GB VRAM recommended
-- **Inference**: Can run on CPU, but GPU provides better real-time performance
+### 2. Memory Limitations
+- Reduce image size or batch size
+- Use gradient checkpointing to save memory
+- Train on cloud instances with more GPU memory
+- Use model pruning techniques after training
 
-### Privacy and Ethics
-- Ensure compliance with local privacy regulations
-- Anonymize data where possible
-- Obtain necessary permissions for site recordings
+### 3. Slow Training
+- Use mixed precision training
+- Optimize data loading pipeline
+- Use more powerful hardware (GPU, CPU, RAM)
+- Precompute and cache features when possible
 
-### Accuracy Improvements
-- Collect more diverse training data
-- Use domain-specific data augmentation
-- Implement ensemble methods
-- Regular model updates with new data
+## Expected Outcomes
 
-## Deployment Options
+With proper implementation, you should achieve:
+- Detection of 100-200 different safety violations
+- Real-time inference capabilities
+- High precision and recall for critical safety violations
+- Robust performance across various construction site conditions
 
-### Edge Deployment
-- Deploy on local hardware at construction sites
-- Use NVIDIA Jetson or similar edge AI platforms
-- Implement local alert systems
+## Next Steps
 
-### Cloud-Based Processing
-- Stream video to cloud for processing
-- Store and analyze violation data
-- Generate reports and analytics
+1. Prepare your dataset with 100-200 safety violation classes
+2. Run the training script with appropriate parameters
+3. Validate the model performance
+4. Deploy the model for real-time safety monitoring
+5. Continuously update and retrain with new data
 
-### Hybrid Approach
-- Local processing for real-time alerts
-- Cloud processing for analytics and model updates
-
-This implementation provides a robust foundation for detecting safety violations on construction sites using YOLO-based object detection technology.
+Remember to follow safety regulations and ethical guidelines when deploying computer vision systems in construction environments.
