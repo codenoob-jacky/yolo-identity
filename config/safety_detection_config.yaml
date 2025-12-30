@@ -1,0 +1,55 @@
+# Configuration for Construction Site Safety Detection
+
+model:
+  architecture: "yolov8n.pt"  # Base model architecture
+  img_size: 640               # Input image size
+  confidence_threshold: 0.5   # Detection confidence threshold
+  iou_threshold: 0.5          # Non-maximum suppression threshold
+
+dataset:
+  path: "./data/safety_dataset"
+  train_split: 0.7
+  val_split: 0.2
+  test_split: 0.1
+  classes:
+    - "person"
+    - "hard_hat"
+    - "safety_vest"
+    - "safety_harness"
+    - "safety_goggles"
+    - "gloves"
+    - "boots"
+
+training:
+  epochs: 100
+  batch_size: 16
+  learning_rate: 0.001
+  optimizer: "Adam"
+  save_dir: "./models/trained"
+  project_name: "safety_detection"
+
+inference:
+  source: "webcam"            # Options: webcam, image, video
+  output_dir: "./output"
+  save_results: True
+  show_video: True
+
+safety_rules:
+  # Define safety rules for violation detection
+  hard_hat_required: True
+  safety_vest_required: True
+  safety_harness_required: True
+  required_equipment_per_class:
+    worker: ["hard_hat", "safety_vest"]
+   高空作业_worker: ["hard_hat", "safety_vest", "safety_harness"]  # High-altitude work
+
+visualization:
+  show_confidence: True
+  bbox_thickness: 2
+  font_scale: 0.5
+  colors:
+    person: [0, 255, 0]      # Green
+    hard_hat: [0, 0, 255]    # Red
+    safety_vest: [255, 0, 0] # Blue
+    safety_harness: [255, 255, 0] # Cyan
+    violation: [0, 0, 255]   # Red for violations
